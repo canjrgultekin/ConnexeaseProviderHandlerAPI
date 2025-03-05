@@ -1,39 +1,50 @@
-﻿using System;
-using System.Threading.Tasks;
-using TicimaxAPI.Kafka;
-using TicimaxAPI.Models;
-using TicimaxAPI.Repositories;
+﻿using TicimaxAPI.Models;
+using TicimaxAPI.Helper;
+using TicimaxAPI.Enums;
 
 namespace TicimaxAPI.Services
 {
     public class TicimaxService : ITicimaxService
     {
         private readonly TicimaxWcfClient _ticimaxWcfClient;
-    //    private readonly KafkaProducerService _kafkaProducerService;
+        private readonly IConfiguration _configuration;
+        private readonly ILogger<TicimaxService> _logger;
 
-        public TicimaxService(TicimaxWcfClient ticimaxWcfClient)//, KafkaProducerService kafkaProducerService)
+        public TicimaxService(TicimaxWcfClient ticimaxWcfClient, IConfiguration configuration, ILogger<TicimaxService> logger)
         {
             _ticimaxWcfClient = ticimaxWcfClient;
-   //         _kafkaProducerService = kafkaProducerService;
+            _configuration = configuration;
+            _logger = logger;
         }
 
         public async Task<TicimaxResponseDto> HandleTicimaxRequestAsync(TicimaxRequestDto request)
         {
-            var data = await _ticimaxWcfClient.HandleActionAsync(request);
+            var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, request.ProjectName); // 🔥 ProjectName bazlı konfig alma
+            if (!Enum.TryParse(request.ActionType, true, out ActionType actionType))
+            {
+                throw new ArgumentException("Geçersiz ActionType");
+            }
 
-            // Kafka'ya mesaj gönder
-       //     await _kafkaProducerService.PublishMessageAsync(request.SessionId, data.ToString());
+            var data = actionType.GetActionTypeString() switch
+            {
+                "add_to_cart" or "remove_to_cart" => await _ticimaxWcfClient.GetSepet(firmaConfig, request.CustomerId),
+                "checkout" => await _ticimaxWcfClient.GetSiparis(firmaConfig, request.CustomerId),
+                "add_favorite_product" => await _ticimaxWcfClient.GetFavoriUrunler(firmaConfig, request.CustomerId),
+                _ => throw new ArgumentException("Geçersiz ActionType")
+            };
 
             return new TicimaxResponseDto
             {
                 Status = "Success",
-                Message = "Ticimax işlemi tamamlandı",
+                Message = $"{request.ProjectName} için Ticimax işlemi tamamlandı",
                 Data = data
             };
         }
-        public async Task<object> GetCustomerDataAsync(string customerId)
+
+        public async Task<object> GetCustomerDataAsync(string projectName,string sessionId, string customerId)
         {
-            return await _ticimaxWcfClient.GetCustomerData(customerId);
+            var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, projectName); // 🔥 Firma yapılandırmasını al
+            return await _ticimaxWcfClient.GetCustomerData(firmaConfig, customerId);
         }
     }
 }

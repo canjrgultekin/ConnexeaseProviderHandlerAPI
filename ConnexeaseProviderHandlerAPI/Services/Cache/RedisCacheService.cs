@@ -5,7 +5,7 @@ using Microsoft.Extensions.Caching.Distributed;
 using Microsoft.Extensions.Configuration;
 using StackExchange.Redis;
 
-namespace ConnexeaseProviderHandlerAPI.Services
+namespace ConnexeaseProviderHandlerAPI.Services.Cache
 {
     public class RedisCacheService
     {

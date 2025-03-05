@@ -1,6 +1,10 @@
 ﻿using Serilog;
 using ConnexeaseProviderHandlerAPI.Services;
 using StackExchange.Redis;
+using ConnexeaseProviderHandlerAPI.Services.Ikas;
+using ConnexeaseProviderHandlerAPI.Services.Ticimax;
+using ConnexeaseProviderHandlerAPI.Services.Tsoft;
+using ConnexeaseProviderHandlerAPI.Services.Cache;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -12,18 +16,22 @@ builder.Services.AddControllers();
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 
+// 🔥 Redis Cache Kullanımı
 builder.Services.AddSingleton<IConnectionMultiplexer>(
     ConnectionMultiplexer.Connect(builder.Configuration["Redis:ConnectionString"])
 );
 builder.Services.AddSingleton<RedisCacheService>();
 
-builder.Services.AddSingleton<IkasService>();
+// 🔥 `IProviderService` için `ProviderService` DI Entegrasyonu
+builder.Services.AddSingleton<IProviderService, IkasService>();
+
+// 🔥 ProviderHandler DI Entegrasyonu
 builder.Services.AddSingleton<ProviderHandler>();
-//builder.Services.AddSingleton<KafkaProducerService>();
-builder.Services.AddHttpClient<TicimaxApiClient>(); // HTTP Client kullanarak API çağrısı yapacak
-builder.Services.AddHttpClient<TsoftApiClient>(); // 🔥 Interface olarak ekleniyor
 
-
+// 🔥 Ticimax ve Tsoft API Client DI Entegrasyonu
+builder.Services.AddHttpClient<ITicimaxApiClient, TicimaxApiClient>();
+builder.Services.AddHttpClient<ITsoftApiClient, TsoftApiClient>();
+builder.Services.AddHttpClient();
 var app = builder.Build();
 
 app.UseSwagger();

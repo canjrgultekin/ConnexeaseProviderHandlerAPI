@@ -2,7 +2,7 @@
 using System.Threading.Tasks;
 using ConnexeaseProviderHandlerAPI.Models;
 
-namespace ConnexeaseProviderHandlerAPI.Services
+namespace ConnexeaseProviderHandlerAPI.Services.Ikas
 {
     public class IkasService : IProviderService
     {

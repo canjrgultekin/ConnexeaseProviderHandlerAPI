@@ -1,8 +1,9 @@
 ﻿using System.Text;
 using System.Text.Json;
 using ConnexeaseProviderHandlerAPI.Models;
+using ConnexeaseProviderHandlerAPI.Models.Ticimax;
 
-namespace ConnexeaseProviderHandlerAPI.Services
+namespace ConnexeaseProviderHandlerAPI.Services.Ticimax
 {
     public class TicimaxApiClient : ITicimaxApiClient
     {
@@ -17,15 +18,17 @@ namespace ConnexeaseProviderHandlerAPI.Services
             _logger = logger;
         }
 
-        public async Task<object> GetCustomerData(string customerId)
+        public async Task<object> GetCustomerDataAsync(ClientRequestDto request)
         {
             try
             {
-                var response = await _httpClient.GetAsync($"{_ticimaxApiUrl}/api/ticimax/get-customer?customerId={customerId}");
+                var response = await _httpClient.GetAsync($"{_ticimaxApiUrl}/api/ticimax/get-customer?projectName={request.ProjectName} &customerId= {request.CustomerId}");
                 response.EnsureSuccessStatusCode();
 
                 var jsonResponse = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<object>(jsonResponse);
+                var tsoftCustomerResponse = JsonSerializer.Deserialize<object>(jsonResponse);
+
+                return tsoftCustomerResponse;
             }
             catch (Exception ex)
             {
@@ -45,7 +48,14 @@ namespace ConnexeaseProviderHandlerAPI.Services
                 response.EnsureSuccessStatusCode();
 
                 var jsonResponse = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<TicimaxResponseDto>(jsonResponse);
+                var data = JsonSerializer.Deserialize<object>(jsonResponse);
+                TicimaxResponseDto responseDto = new TicimaxResponseDto
+                {
+                    Status = "Success",
+                    Message = $"{request.ProjectName} için Tsoft işlemi tamamlandı",
+                    Data = data
+                };
+                return responseDto;
             }
             catch (Exception ex)
             {

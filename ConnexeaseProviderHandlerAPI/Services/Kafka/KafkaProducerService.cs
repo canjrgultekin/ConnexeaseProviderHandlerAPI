@@ -4,7 +4,7 @@ using Confluent.Kafka;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace ConnexeaseProviderHandlerAPI.Services
+namespace ConnexeaseProviderHandlerAPI.Services.Kafka
 {
     public class KafkaProducerService
     {

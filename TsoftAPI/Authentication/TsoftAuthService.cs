@@ -1,12 +1,7 @@
-﻿using System;
-using System.Linq;
-using System.Net.Http;
-using System.Text.Json;
-using System.Threading.Tasks;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
+﻿using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
-using TsoftAPI.Models;
+using TsoftAPI.Helper;
+using TsoftAPI.Models.Authentication;
 
 namespace TsoftAPI.Authentication
 {
@@ -25,22 +20,10 @@ namespace TsoftAPI.Authentication
             _cache = cache;
         }
 
-        public async Task<string> GetAuthTokenAsync(string projectName)
+        public async Task<string> GetAuthTokenAsync(string projectName,string sessionId)
         {
-            var firmalar = _configuration.GetSection("TsoftAPI").Get<TsoftFirmConfig[]>();
-            var firmaConfig = firmalar.FirstOrDefault(f => f.ProjectName == projectName);
-
-            if (firmaConfig == null)
-            {
-                _logger.LogError($"❌ TsoftAPI için {projectName} konfigürasyonu bulunamadı.");
-                throw new Exception($"TsoftAPI için {projectName} yapılandırması bulunamadı.");
-            }
-
-            string baseUrl = firmaConfig.BaseUrl;
-            string pass = firmaConfig.Password;
-            string cacheKey = $"TsoftAuthToken:{projectName}";
-
-            // 🔥 Öncelikle Redis Cache içinde token var mı kontrol edelim
+            var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, projectName); // 🔥 Helper Metot Kullanılıyor
+            string cacheKey = $"TsoftAuthToken:{projectName+sessionId}";
             var cachedToken = await _cache.GetStringAsync(cacheKey);
 
             if (!string.IsNullOrEmpty(cachedToken))
@@ -49,7 +32,7 @@ namespace TsoftAPI.Authentication
                 return cachedToken;
             }
 
-            var authUrl = $"{baseUrl}/rest1/auth/login/{firmaConfig.Name}?pass={pass}";
+            var authUrl = $"{firmaConfig.BaseUrl}/rest1/auth/login/{firmaConfig.Name}?pass={firmaConfig.Password}";
 
             try
             {

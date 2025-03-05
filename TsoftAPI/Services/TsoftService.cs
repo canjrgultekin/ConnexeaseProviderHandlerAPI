@@ -1,12 +1,14 @@
 ﻿using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Caching.Distributed;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using System.Linq;
-using System.Threading.Tasks;
 using TsoftAPI.Authentication;
 using TsoftAPI.Models;
+using TsoftAPI.Helper;
+using TsoftAPI.Enums;
+using static System.Runtime.InteropServices.JavaScript.JSType;
+using System.Net;
+using System.Web;
+using System;
 
 namespace TsoftAPI.Services
 {
@@ -29,74 +31,73 @@ namespace TsoftAPI.Services
 
         public async Task<TsoftResponseDto> HandleTsoftRequestAsync(TsoftRequestDto request)
         {
-            // 🔥 Config’den firma bilgilerini çek
-            var firmalar = _configuration.GetSection("TsoftAPI").Get<TsoftFirmConfig[]>();
-            var firmaConfig = firmalar.FirstOrDefault(f => f.ProjectName == request.ProjectName);
+            var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, request.ProjectName); // 🔥 Helper Metot Kullanılıyor
+            var token = await _authService.GetAuthTokenAsync(request.ProjectName, request.SessionId);
+          //  _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
-            if (firmaConfig == null)
-            {
-                _logger.LogError($"❌ TsoftAPI için {request.ProjectName} konfigürasyonu bulunamadı.");
-                throw new Exception($"TsoftAPI için {request.ProjectName} yapılandırması bulunamadı.");
-            }
-
-            var token = await _authService.GetAuthTokenAsync(request.ProjectName);
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-            string apiUrl = $"{firmaConfig.BaseUrl}";
-
-            // **Müşteri Verisini Cache’ten Al veya Çek**
             var cacheKey = $"TsoftCustomer:{request.SessionId}:{request.CustomerId}";
             string cachedCustomerCode = await _cache.GetStringAsync(cacheKey);
-
-            if (string.IsNullOrEmpty(cachedCustomerCode))
+            if(cachedCustomerCode == null)
             {
-                var customerData = await GetCustomerDataAsync(request.ProjectName, request.CustomerId);
-                cachedCustomerCode = customerData?.CustomerCode;
-
-                if (!string.IsNullOrEmpty(cachedCustomerCode))
-                {
-                    await _cache.SetStringAsync(cacheKey, cachedCustomerCode);
-                }
-                else
-                {
-                    _logger.LogWarning($"⚠️ Müşteri kodu bulunamadı: {request.CustomerId}");
-                    cachedCustomerCode = "defaultCustomerCode"; // Hata olmaması için varsayılan bir değer atanabilir
-                }
+                var customer = GetCustomerDataAsync(request.ProjectName, request.SessionId, request.CustomerId);
+                cachedCustomerCode = customer.Result.Data[0].CustomerCode;
+                await _cache.SetStringAsync(cacheKey, cachedCustomerCode);
+            }
+            if (!Enum.TryParse(request.ActionType, true, out ActionType actionType))
+            {
+                throw new ArgumentException("Geçersiz ActionType");
             }
 
-            // **ActionType’a Göre Doğru API Endpointini Kullan**
-            switch (request.ActionType)
+            var apiUrl = actionType.GetActionTypeString() switch
             {
-                case "add_to_cart":
-                    apiUrl = $"{firmaConfig.BaseUrl}/rest1/customer/getCart/{cachedCustomerCode}";
-                    break;
+                "add_to_cart" => $"{firmaConfig.BaseUrl}/rest1/customer/getCart/{cachedCustomerCode}",
+                "remove_to_cart" => $"{firmaConfig.BaseUrl}/rest1/customer/getCart/{cachedCustomerCode}",
+                "checkout" => $"{firmaConfig.BaseUrl}/rest1/order/get",
+                "add_favorite_product" => $"{firmaConfig.BaseUrl}/rest1/customer/getWishList",
+                _ => throw new ArgumentException("Geçersiz ActionType")
+            };
+            var postData = actionType.GetActionTypeString() switch
+            {
+            "add_to_cart" => new Dictionary<string, string>
+             {
+                { "token", token }            
+            },            
+            "remove_to_cart" => new Dictionary<string, string>
+             {
+                { "token", token }
+            },
+            "checkout" => new Dictionary<string, string>
+             { 
+                { "token", token },
+                { "FetchProductData", "true" },
+                { "FetchProductDetail", "true" },
+                { "FetchPackageContent", "true" },
+                { "FetchCustomerData", "true" },
+                { "f", $"CustomerId|{request.CustomerId}|equal" }
+             },
+             "add_favorite_product" => new Dictionary<string, string>
+             {
+                { "token", token },
+                { "CustomerId", request.CustomerId }
+              },
+               _ => throw new ArgumentException("Geçersiz ActionType")
+            };
 
-                case "remove_to_cart":
-                    apiUrl = $"{firmaConfig.BaseUrl}/rest1/customer/getCart/{cachedCustomerCode}";
-                    break;
-
-                case "checkout":
-                    apiUrl = $"{firmaConfig.BaseUrl}/rest1/order/get";
-                    break;
-
-                case "add_favorite_product":
-                    apiUrl = $"{firmaConfig.BaseUrl}/rest1/customer/getWishList";
-                    break;
-
-                default:
-                    throw new ArgumentException("Geçersiz ActionType");
-            }
-
-            var jsonRequest = JsonSerializer.Serialize(request);
-            var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
 
             try
             {
-                var response = await _httpClient.PostAsync(apiUrl, content);
-                response.EnsureSuccessStatusCode();
-
-                var jsonResponse = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<TsoftResponseDto>(jsonResponse);
+                var encodedContent = new FormUrlEncodedContent(postData);
+                using HttpResponseMessage response = await _httpClient.PostAsync(apiUrl, encodedContent);
+                response.EnsureSuccessStatusCode(); // Hata durumlarını yönetir
+                string result = await response.Content.ReadAsStringAsync();
+                var data = JsonSerializer.Deserialize<object>(result);
+                TsoftResponseDto responseDto = new TsoftResponseDto
+                {
+                    Status = "Success",
+                    Message = $"{request.ProjectName} için Tsoft işlemi tamamlandı",
+                    Data = data
+                };
+                return responseDto;
             }
             catch (Exception ex)
             {
@@ -105,29 +106,27 @@ namespace TsoftAPI.Services
             }
         }
 
-        public async Task<TsoftCustomerResponseDto> GetCustomerDataAsync(string projectName, string customerId)
+        public async Task<TsoftCustomerResponseDto> GetCustomerDataAsync(string projectName,string sessionId, string customerId)
         {
-            var token = await _authService.GetAuthTokenAsync(projectName);
+            var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, projectName); // 🔥 Helper Metot Kullanılıyor
+            var token = await _authService.GetAuthTokenAsync(projectName,sessionId);
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-            var firmalar = _configuration.GetSection("TsoftAPI").Get<TsoftFirmConfig[]>();
-            var firmaConfig = firmalar.FirstOrDefault(f => f.ProjectName == projectName);
-
-            if (firmaConfig == null)
-            {
-                _logger.LogError($"❌ TsoftAPI için {projectName} konfigürasyonu bulunamadı.");
-                throw new Exception($"TsoftAPI için {projectName} yapılandırması bulunamadı.");
-            }
+            var cacheKey = $"TsoftCustomer:{sessionId}:{customerId}";
 
             string apiUrl = $"{firmaConfig.BaseUrl}/rest1/customer/getCustomerById/{customerId}";
 
             try
             {
                 var response = await _httpClient.PostAsync(apiUrl, new StringContent($"token={token}", Encoding.UTF8, "application/x-www-form-urlencoded"));
-                response.EnsureSuccessStatusCode();
-
+               var status = response.EnsureSuccessStatusCode();
+               
                 var jsonResponse = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<TsoftCustomerResponseDto>(jsonResponse);
+                var responseData = JsonSerializer.Deserialize<TsoftCustomerResponseDto>(jsonResponse);
+                if (status.IsSuccessStatusCode)
+                {
+                    await _cache.SetStringAsync(cacheKey, responseData.Data[0].CustomerCode);
+                }
+                return responseData;
             }
             catch (Exception ex)
             {
@@ -136,5 +135,4 @@ namespace TsoftAPI.Services
             }
         }
     }
-
 }

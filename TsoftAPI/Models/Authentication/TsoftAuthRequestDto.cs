@@ -1,4 +1,4 @@
-namespace TsoftAPI.Models
+namespace TsoftAPI.Models.Authentication
 {
     public class TsoftAuthRequestDto
     {

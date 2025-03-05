@@ -3,20 +3,25 @@ using System.Text.Json;
 using System.Threading.Tasks;
 using ConnexeaseProviderHandlerAPI.Models;
 using ConnexeaseProviderHandlerAPI.Services;
+using ConnexeaseProviderHandlerAPI.Enums;
+using ConnexeaseProviderHandlerAPI.Services.Ticimax;
+using ConnexeaseProviderHandlerAPI.Services.Tsoft;
+using ConnexeaseProviderHandlerAPI.Services.Cache;
+using ConnexeaseProviderHandlerAPI.Helper;
 
 namespace ConnexeaseProviderHandlerAPI.Services
 {
     public class ProviderHandler
     {
         private readonly RedisCacheService _redisCacheService;
-        private readonly TicimaxApiClient _ticimaxApiClient;
-        private readonly TsoftApiClient _tsoftApiClient; // 🔥 Interface üzerinden bağımlılık yönetiliyor
+        private readonly ITicimaxApiClient _ticimaxApiClient;
+        private readonly ITsoftApiClient _tsoftApiClient;
         private readonly IProviderService _ikasService;
 
         public ProviderHandler(
-            TicimaxApiClient ticimaxApiClient,
-            TsoftApiClient tsoftApiClient, // 🔥 Interface olarak eklendi
-            IkasService ikasService,
+            ITicimaxApiClient ticimaxApiClient,
+            ITsoftApiClient tsoftApiClient,
+            IProviderService ikasService,
             RedisCacheService redisCacheService)
         {
             _ticimaxApiClient = ticimaxApiClient;
@@ -25,29 +30,30 @@ namespace ConnexeaseProviderHandlerAPI.Services
             _redisCacheService = redisCacheService;
         }
 
-        public async Task<string> HandleRequestAsync(ClientRequestDto request)
+        public async Task<object> HandleRequestAsync(ClientRequestDto request)
         {
             string cacheKey = $"{request.Provider}:{request.ProjectName}:{request.SessionId}:{request.CustomerId}";
             var cachedCustomer = await _redisCacheService.GetCacheAsync(cacheKey);
 
-            if ((request.Provider == "Ticimax" || request.Provider == "Tsoft") && cachedCustomer == null)
+            if (!Enum.TryParse(request.Provider, true, out ProviderType providerType))
             {
-                Console.WriteLine($"🆕 {request.Provider} müşteri verisi çekiliyor: {request.CustomerId}");
+                throw new ArgumentException("Geçersiz Provider");
+            }
 
-                object customerData = null;
+            if (cachedCustomer == null)
+            {
+                Console.WriteLine($"🆕 {providerType} müşteri verisi çekiliyor: {request.CustomerId}");
 
-                if (request.Provider == "Ticimax")
+                object customerData = providerType.GetProviderTypeString() switch
                 {
-                    customerData = await _ticimaxApiClient.GetCustomerData(request.CustomerId);
-                }
-                else if (request.Provider == "Tsoft")
-                {
-                    customerData = await _tsoftApiClient.GetCustomerData(request.ProjectName,request.CustomerId);
-                }
+                    "ticimax" => await _ticimaxApiClient.GetCustomerDataAsync(request),
+                    "tsoft" => await _tsoftApiClient.GetCustomerDataAsync(request),
+                    _ => null
+                };
 
                 if (customerData != null)
                 {
-                    Console.WriteLine($"✅ {request.Provider} Müşteri verisi cache'e alınıyor: {request.CustomerId}");
+                    Console.WriteLine($"✅ {providerType} Müşteri verisi cache'e alınıyor: {request.CustomerId}");
 
                     var newCustomerData = new CustomerData
                     {
@@ -62,17 +68,17 @@ namespace ConnexeaseProviderHandlerAPI.Services
                 }
                 else
                 {
-                    Console.WriteLine($"⚠️ {request.Provider} müşteri verisi alınamadı: {request.CustomerId}");
+                    Console.WriteLine($"⚠️ {providerType} müşteri verisi alınamadı: {request.CustomerId}");
                 }
             }
-
-            return request.Provider switch
+            object data = providerType.GetProviderTypeString() switch
             {
-                "Ticimax" => (await _ticimaxApiClient.SendRequestToTicimaxAsync(request)).Message,
-                "Tsoft" => (await _tsoftApiClient.SendRequestToTsoftAsync(request)).Message, // 🔥 TsoftAPI Çağrılıyor
-                "Ikas" => await _ikasService.ProcessRequestAsync(request),
+                "ticimax" => await _ticimaxApiClient.SendRequestToTicimaxAsync(request),
+                "tsoft" => await _tsoftApiClient.SendRequestToTsoftAsync(request),
+                "ikas" => await _ikasService.ProcessRequestAsync(request),
                 _ => throw new ArgumentException("Geçersiz Provider")
             };
+            return data;
         }
     }
 }

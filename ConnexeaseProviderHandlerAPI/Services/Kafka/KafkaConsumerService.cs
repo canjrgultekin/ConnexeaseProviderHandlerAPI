@@ -6,7 +6,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 
-namespace ConnexeaseProviderHandlerAPI.Services
+namespace ConnexeaseProviderHandlerAPI.Services.Kafka
 {
     public class KafkaConsumerService : BackgroundService
     {

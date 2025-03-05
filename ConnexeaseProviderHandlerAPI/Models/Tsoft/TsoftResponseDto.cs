@@ -1,4 +1,4 @@
-﻿namespace ConnexeaseProviderHandlerAPI.Models
+﻿namespace ConnexeaseProviderHandlerAPI.Models.Tsoft
 {
     public class TsoftResponseDto
     {

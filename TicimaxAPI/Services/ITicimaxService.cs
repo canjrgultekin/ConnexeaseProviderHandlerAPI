@@ -6,6 +6,6 @@ namespace TicimaxAPI.Services
     public interface ITicimaxService
     {
         Task<TicimaxResponseDto> HandleTicimaxRequestAsync(TicimaxRequestDto request);
-        Task<object> GetCustomerDataAsync(string customerId);
+        Task<object> GetCustomerDataAsync(string projectName,string sessionId, string customerId);
     }
 }

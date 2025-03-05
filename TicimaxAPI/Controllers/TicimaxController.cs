@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using System.Threading.Tasks;
 using TicimaxAPI.Services;
 using TicimaxAPI.Models;
 
@@ -23,9 +24,9 @@ namespace TicimaxAPI.Controllers
         }
 
         [HttpGet("get-customer")]
-        public async Task<IActionResult> GetCustomer([FromQuery] string customerId)
+        public async Task<IActionResult> GetCustomer([FromBody] TicimaxRequestDto request)
         {
-            var customerData = await _ticimaxService.GetCustomerDataAsync(customerId);
+            var customerData = await _ticimaxService.GetCustomerDataAsync(request.ProjectName,request.SessionId, request.CustomerId);
             return Ok(customerData);
         }
     }

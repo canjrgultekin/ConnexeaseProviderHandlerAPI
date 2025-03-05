@@ -1,10 +1,12 @@
 ﻿using System.Text;
 using System.Text.Json;
 using ConnexeaseProviderHandlerAPI.Models;
+using ConnexeaseProviderHandlerAPI.Models.Tsoft;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
-namespace ConnexeaseProviderHandlerAPI.Services
+namespace ConnexeaseProviderHandlerAPI.Services.Tsoft
 {
-    public class TsoftApiClient
+    public class TsoftApiClient : ITsoftApiClient
     {
         private readonly HttpClient _httpClient;
         private readonly string _tsoftApiUrl;
@@ -14,22 +16,24 @@ namespace ConnexeaseProviderHandlerAPI.Services
         {
             _httpClient = httpClient;
             _tsoftApiUrl = configuration["TsoftAPI:BaseUrl"]; // 🔥 BaseUrl artık config'den geliyor
+           
             _logger = logger;
         }
 
-        public async Task<object> GetCustomerData(string projectName,string customerId)
+        public async Task<TsoftCustomerResponseDto> GetCustomerDataAsync(ClientRequestDto request)
         {
             try
             {
-                var response = await _httpClient.GetAsync($"{_tsoftApiUrl}/api/tsoft/get-customer?projectName={projectName}&customerId={customerId}");
+                var response = await _httpClient.GetAsync($"{_tsoftApiUrl}/api/tsoft/get-customer?projectName={request.ProjectName}&customerId={request.CustomerId}");
                 response.EnsureSuccessStatusCode();
                 var jsonResponse = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<object>(jsonResponse);
+                var tsoftCustomerResponse = JsonSerializer.Deserialize<TsoftCustomerResponseDto>(jsonResponse);
+                return tsoftCustomerResponse;
             }
             catch (Exception ex)
             {
                 _logger.LogError($"❌ TsoftAPI'den müşteri bilgisi alınamadı: {ex.Message}");
-                return new { Message = "Müşteri bilgisi alınamadı" };
+                return new TsoftCustomerResponseDto();
             }
         }
 
@@ -44,7 +48,14 @@ namespace ConnexeaseProviderHandlerAPI.Services
                 response.EnsureSuccessStatusCode();
 
                 var jsonResponse = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<TsoftResponseDto>(jsonResponse);
+                var data = JsonSerializer.Deserialize<object>(jsonResponse);
+                TsoftResponseDto responseDto = new TsoftResponseDto
+                {
+                    Status = "Success",
+                    Message = $"{request.ProjectName} için Tsoft işlemi tamamlandı",
+                    Data = data
+                };
+                return responseDto;
             }
             catch (Exception ex)
             {

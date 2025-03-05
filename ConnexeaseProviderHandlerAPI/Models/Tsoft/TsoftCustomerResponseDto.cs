@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace TsoftAPI.Models
+namespace ConnexeaseProviderHandlerAPI.Models.Tsoft
 {
     public class TsoftCustomerResponseDto
     {
