@@ -22,13 +22,12 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(
 );
 builder.Services.AddSingleton<RedisCacheService>();
 
-// 🔥 `IProviderService` için `ProviderService` DI Entegrasyonu
-builder.Services.AddSingleton<IProviderService, IkasService>();
 
 // 🔥 ProviderHandler DI Entegrasyonu
 builder.Services.AddSingleton<ProviderHandler>();
 
-// 🔥 Ticimax ve Tsoft API Client DI Entegrasyonu
+// 🔥 Ikas, Ticimax ve Tsoft API Client DI Entegrasyonu
+builder.Services.AddHttpClient<IIkasApiClient, IkasApiClient>();
 builder.Services.AddHttpClient<ITicimaxApiClient, TicimaxApiClient>();
 builder.Services.AddHttpClient<ITsoftApiClient, TsoftApiClient>();
 builder.Services.AddHttpClient();

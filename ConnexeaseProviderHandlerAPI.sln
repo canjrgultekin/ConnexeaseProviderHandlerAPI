@@ -9,6 +9,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TicimaxAPI", "TicimaxAPI\Ti
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TsoftAPI", "TsoftAPI\TsoftAPI.csproj", "{19DF472D-60C2-400F-9397-5B33E5663532}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "IkasAPI", "IkasAPI\IkasAPI.csproj", "{C116DEFE-8376-4F0E-BC04-37A5A8ECADF5}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{19DF472D-60C2-400F-9397-5B33E5663532}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{19DF472D-60C2-400F-9397-5B33E5663532}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{19DF472D-60C2-400F-9397-5B33E5663532}.Release|Any CPU.Build.0 = Release|Any CPU
+		{C116DEFE-8376-4F0E-BC04-37A5A8ECADF5}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{C116DEFE-8376-4F0E-BC04-37A5A8ECADF5}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{C116DEFE-8376-4F0E-BC04-37A5A8ECADF5}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{C116DEFE-8376-4F0E-BC04-37A5A8ECADF5}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

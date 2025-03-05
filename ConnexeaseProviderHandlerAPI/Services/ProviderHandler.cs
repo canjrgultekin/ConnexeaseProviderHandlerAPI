@@ -8,6 +8,7 @@ using ConnexeaseProviderHandlerAPI.Services.Ticimax;
 using ConnexeaseProviderHandlerAPI.Services.Tsoft;
 using ConnexeaseProviderHandlerAPI.Services.Cache;
 using ConnexeaseProviderHandlerAPI.Helper;
+using ConnexeaseProviderHandlerAPI.Services.Ikas;
 
 namespace ConnexeaseProviderHandlerAPI.Services
 {
@@ -16,17 +17,17 @@ namespace ConnexeaseProviderHandlerAPI.Services
         private readonly RedisCacheService _redisCacheService;
         private readonly ITicimaxApiClient _ticimaxApiClient;
         private readonly ITsoftApiClient _tsoftApiClient;
-        private readonly IProviderService _ikasService;
+        private readonly IIkasApiClient _ikasApiClient;
 
         public ProviderHandler(
             ITicimaxApiClient ticimaxApiClient,
             ITsoftApiClient tsoftApiClient,
-            IProviderService ikasService,
+            IIkasApiClient ikasApiClient,
             RedisCacheService redisCacheService)
         {
             _ticimaxApiClient = ticimaxApiClient;
             _tsoftApiClient = tsoftApiClient;
-            _ikasService = ikasService;
+            _ikasApiClient = ikasApiClient;
             _redisCacheService = redisCacheService;
         }
 
@@ -48,6 +49,8 @@ namespace ConnexeaseProviderHandlerAPI.Services
                 {
                     "ticimax" => await _ticimaxApiClient.GetCustomerDataAsync(request),
                     "tsoft" => await _tsoftApiClient.GetCustomerDataAsync(request),
+                    "ikas" => await _ikasApiClient.GetCustomerDataAsync(request),
+
                     _ => null
                 };
 
@@ -75,7 +78,7 @@ namespace ConnexeaseProviderHandlerAPI.Services
             {
                 "ticimax" => await _ticimaxApiClient.SendRequestToTicimaxAsync(request),
                 "tsoft" => await _tsoftApiClient.SendRequestToTsoftAsync(request),
-                "ikas" => await _ikasService.ProcessRequestAsync(request),
+                "ikas" => await _ikasApiClient.SendRequestToIkasAsync(request),
                 _ => throw new ArgumentException("Geçersiz Provider")
             };
             return data;
