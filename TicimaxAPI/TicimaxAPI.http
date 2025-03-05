@@ -1,0 +1,6 @@
+@TicimaxAPI_HostAddress = http://localhost:5186
+
+GET {{TicimaxAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

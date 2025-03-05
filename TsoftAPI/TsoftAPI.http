@@ -1,0 +1,6 @@
+@TsoftAPI_HostAddress = http://localhost:5230
+
+GET {{TsoftAPI_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

@@ -1,0 +1,34 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.12.35527.113
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ConnexeaseProviderHandlerAPI", "ConnexeaseProviderHandlerAPI\ConnexeaseProviderHandlerAPI.csproj", "{666BCA08-E593-4CEC-8327-CE1A7EE6C73B}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TicimaxAPI", "TicimaxAPI\TicimaxAPI.csproj", "{5CBA942A-3ACC-4767-85E2-35F8649990A6}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TsoftAPI", "TsoftAPI\TsoftAPI.csproj", "{19DF472D-60C2-400F-9397-5B33E5663532}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{666BCA08-E593-4CEC-8327-CE1A7EE6C73B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{666BCA08-E593-4CEC-8327-CE1A7EE6C73B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{666BCA08-E593-4CEC-8327-CE1A7EE6C73B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{666BCA08-E593-4CEC-8327-CE1A7EE6C73B}.Release|Any CPU.Build.0 = Release|Any CPU
+		{5CBA942A-3ACC-4767-85E2-35F8649990A6}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{5CBA942A-3ACC-4767-85E2-35F8649990A6}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{5CBA942A-3ACC-4767-85E2-35F8649990A6}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{5CBA942A-3ACC-4767-85E2-35F8649990A6}.Release|Any CPU.Build.0 = Release|Any CPU
+		{19DF472D-60C2-400F-9397-5B33E5663532}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{19DF472D-60C2-400F-9397-5B33E5663532}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{19DF472D-60C2-400F-9397-5B33E5663532}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{19DF472D-60C2-400F-9397-5B33E5663532}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal
