@@ -1,0 +1,6 @@
+@ProviderHandlerAPI_HostAddress = http://localhost:5272
+
+GET {{ProviderHandlerAPI_HostAddress}}/provider/
+Accept: application/json
+
+###

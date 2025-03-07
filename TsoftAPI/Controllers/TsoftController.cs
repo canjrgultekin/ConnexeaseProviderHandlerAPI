@@ -28,5 +28,7 @@ namespace TsoftAPI.Controllers
             var customerData = await _tsoftService.GetCustomerDataAsync(request.ProjectName,request.SessionId, request.CustomerId);
             return Ok(customerData);
         }
+
+       
     }
 }
