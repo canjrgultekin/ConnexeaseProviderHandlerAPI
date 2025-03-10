@@ -125,13 +125,13 @@ namespace IkasAPI.Services
         {
             var firmaConfig = Utils.GetIkasConfig(_configuration, _logger, projectName);
 
-            var variables = new Dictionary<string, string>
-    {
-        { "merchantId", $"\"{firmaConfig.MerchantId}\"" }
-    };
+    //        var variables = new Dictionary<string, string>
+    //{
+    //    { "merchantId", $"\"{firmaConfig.MerchantId}\"" }
+    //};
 
-            var query = CreateGraphQLQuery("listCustomer", variables);
-            return await MakeGraphQLRequest(projectName, query, variables);
+            var query = CreateGraphQLQuery("listCustomer", new Dictionary<string, string>());
+            return await MakeGraphQLRequest(projectName, query, new Dictionary<string, string>());
         }
 
         public async Task<object> ListProducts(string projectName, string productId = null, string brandId = null)

@@ -30,13 +30,13 @@ namespace IkasAPI.Services
 
             var data = new Dictionary<string, string>
                 {
-                    { "grant_type", "client_credentials" },
-                    { "client_id", firmaConfig.ClientId },
-                    { "client_secret", firmaConfig.ClientSecret }
+                    { "grant_type", "client_credentials" }
+            //        { "client_id", firmaConfig.ClientId },
+             //       { "client_secret", firmaConfig.ClientSecret }
                 };
             var formContent = new FormUrlEncodedContent(data);
 
-            var url = firmaConfig.BaseUrl+firmaConfig.TokenPath;
+            var url = firmaConfig.BaseUrl;//firmaConfig.TokenPath;
          
             try
             {
@@ -45,7 +45,7 @@ namespace IkasAPI.Services
 
                 var responseString = await response.Content.ReadAsStringAsync();
 
-                token = Utils.ParseAccessToken(responseString);
+                token = "";//Utils.ParseAccessToken(responseString);
                 if (string.IsNullOrEmpty(token))
                     throw new Exception("Geçerli bir access_token alınamadı.");
             }
