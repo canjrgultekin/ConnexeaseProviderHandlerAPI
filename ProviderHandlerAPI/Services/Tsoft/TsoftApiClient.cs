@@ -24,7 +24,9 @@ namespace ProviderHandlerAPI.Services.Tsoft
         {
             try
             {
-                var response = await _httpClient.GetAsync($"{_tsoftApiUrl}/api/tsoft/get-customer?projectName={request.ProjectName}&customerId={request.CustomerId}");
+                var jsonRequest = JsonSerializer.Serialize(request);
+                var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync($"{_tsoftApiUrl}/api/tsoft/get-customer",content);
                 response.EnsureSuccessStatusCode();
                 var jsonResponse = await response.Content.ReadAsStringAsync();
                 var tsoftCustomerResponse = JsonSerializer.Deserialize<TsoftCustomerResponseDto>(jsonResponse);

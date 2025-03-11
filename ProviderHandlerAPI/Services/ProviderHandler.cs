@@ -9,6 +9,7 @@ using ProviderHandlerAPI.Services.Tsoft;
 using ProviderHandlerAPI.Services.Cache;
 using ProviderHandlerAPI.Helper;
 using ProviderHandlerAPI.Services.Ikas;
+using Common.Kafka;
 
 namespace ProviderHandlerAPI.Services
 {
@@ -18,17 +19,21 @@ namespace ProviderHandlerAPI.Services
         private readonly ITicimaxApiClient _ticimaxApiClient;
         private readonly ITsoftApiClient _tsoftApiClient;
         private readonly IIkasApiClient _ikasApiClient;
+        private readonly KafkaProducerService _kafkaProducer; // 🔥 Kafka Producer eklendi
 
         public ProviderHandler(
             ITicimaxApiClient ticimaxApiClient,
             ITsoftApiClient tsoftApiClient,
             IIkasApiClient ikasApiClient,
-            RedisCacheService redisCacheService)
+            RedisCacheService redisCacheService, 
+            KafkaProducerService kafkaProducer)
         {
             _ticimaxApiClient = ticimaxApiClient;
             _tsoftApiClient = tsoftApiClient;
             _ikasApiClient = ikasApiClient;
             _redisCacheService = redisCacheService;
+            _kafkaProducer = kafkaProducer; // 🔥 Kafka Producer kullanımı
+
         }
 
         public async Task<object> HandleRequestAsync(ClientRequestDto request)
@@ -81,6 +86,17 @@ namespace ProviderHandlerAPI.Services
                 "ikas" => await _ikasApiClient.SendRequestToIkasAsync(request),
                 _ => throw new ArgumentException("Geçersiz Provider")
             };
+
+            // 🔥 Kafka'ya event gönderiliyor
+            await _kafkaProducer.SendMessageAsync(new
+            {
+                Provider = request.Provider,
+                ProjectName = request.ProjectName,
+                SessionId = request.SessionId,
+                CustomerId = request.CustomerId,
+                ActionType = request.ActionType,
+                Data = data
+            });
             return data;
         }
     }

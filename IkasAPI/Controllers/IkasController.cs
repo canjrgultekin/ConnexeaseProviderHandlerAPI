@@ -23,10 +23,10 @@ namespace IkasAPI.Controllers
             return Ok(response);
         }
 
-        [HttpGet("get-customer")]
-        public async Task<IActionResult> GetCustomer([FromQuery] string projectName, [FromQuery] string customerId, [FromQuery] string authToken)
+        [HttpPost("get-customer")]
+        public async Task<IActionResult> GetCustomer([FromBody] IkasRequestDto request)
         {
-            var customerData = await _ikasService.GetCustomerDataAsync(projectName,customerId,authToken);
+            var customerData = await _ikasService.GetCustomerDataAsync(request.ProjectName, request.CustomerId, request.AuthToken);
             return Ok(customerData);
         }
     }

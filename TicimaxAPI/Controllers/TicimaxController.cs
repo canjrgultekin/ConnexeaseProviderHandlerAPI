@@ -23,7 +23,7 @@ namespace TicimaxAPI.Controllers
             return Ok(response);
         }
 
-        [HttpGet("get-customer")]
+        [HttpPost("get-customer")]
         public async Task<IActionResult> GetCustomer([FromBody] TicimaxRequestDto request)
         {
             var customerData = await _ticimaxService.GetCustomerDataAsync(request.ProjectName,request.SessionId, request.CustomerId);

@@ -5,6 +5,7 @@ using ProviderHandlerAPI.Services.Ikas;
 using ProviderHandlerAPI.Services.Ticimax;
 using ProviderHandlerAPI.Services.Tsoft;
 using ProviderHandlerAPI.Services.Cache;
+using Common.Kafka;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -31,6 +32,8 @@ builder.Services.AddHttpClient<IIkasApiClient, IkasApiClient>();
 builder.Services.AddHttpClient<ITicimaxApiClient, TicimaxApiClient>();
 builder.Services.AddHttpClient<ITsoftApiClient, TsoftApiClient>();
 builder.Services.AddHttpClient();
+builder.Services.AddSingleton<KafkaProducerService>();
+
 var app = builder.Build();
 
 app.UseSwagger();

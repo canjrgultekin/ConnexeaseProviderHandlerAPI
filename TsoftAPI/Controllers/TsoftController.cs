@@ -22,7 +22,7 @@ namespace TsoftAPI.Controllers
             return Ok(response);
         }
 
-        [HttpGet("get-customer")]
+        [HttpPost("get-customer")]
         public async Task<IActionResult> GetCustomer([FromBody] TsoftRequestDto request)
         {
             var customerData = await _tsoftService.GetCustomerDataAsync(request.ProjectName,request.SessionId, request.CustomerId);

@@ -26,7 +26,9 @@ namespace ProviderHandlerAPI.Services.Ikas
         {
             try
             {
-                var response = await _httpClient.GetAsync($"{_ikasApiUrl}/api/ikas/get-customer?projectName={request.ProjectName}&customerId={request.CustomerId}&authToken={request.AuthToken}");
+                var jsonRequest = JsonSerializer.Serialize(request);
+                var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync($"{_ikasApiUrl}/api/ikas/get-customer", content);
                 response.EnsureSuccessStatusCode();
 
                 var jsonResponse = await response.Content.ReadAsStringAsync();

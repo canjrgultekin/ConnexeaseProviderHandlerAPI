@@ -20,4 +20,8 @@
     <Folder Include="Models\Ikas\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Common.Kafka\Common.Kafka.csproj" />
+  </ItemGroup>
+
 </Project>

@@ -22,7 +22,9 @@ namespace ProviderHandlerAPI.Services.Ticimax
         {
             try
             {
-                var response = await _httpClient.GetAsync($"{_ticimaxApiUrl}/api/ticimax/get-customer?projectName={request.ProjectName} &customerId= {request.CustomerId}");
+                var jsonRequest = JsonSerializer.Serialize(request);
+                var content = new StringContent(jsonRequest, Encoding.UTF8, "application/json");
+                var response = await _httpClient.PostAsync($"{_ticimaxApiUrl}/api/ticimax/get-customer",content);
                 response.EnsureSuccessStatusCode();
 
                 var jsonResponse = await response.Content.ReadAsStringAsync();
