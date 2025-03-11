@@ -1,6 +1,10 @@
 ﻿using TsoftAPI.Authentication;
 using TsoftAPI.Services;
 using Serilog;
+using Polly.Extensions.Http;
+using Polly;
+using Common.Redis;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -9,15 +13,35 @@ builder.Host.UseSerilog((context, config) => config.WriteTo.Console());
 
 builder.Services.AddControllers();
 
-// 🔥 Redis Kullanımı İçin:
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = builder.Configuration["Redis:ConnectionString"];
-    options.InstanceName = "TsoftCache_";
-});
+// 🔥 Redis Bağlantısı (IConnectionMultiplexer ile bağlantı havuzu yönetimi)
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect(builder.Configuration["Redis:ConnectionString"])
+);
 
-builder.Services.AddHttpClient<TsoftAuthService>();
-builder.Services.AddHttpClient<ITsoftService, TsoftService>();
+// 🔥 RedisCacheService'in DI ile Yönetilmesi
+builder.Services.AddSingleton<RedisCacheService>();
+// 🔥 Polly Politikaları
+var timeoutPolicy = Policy.TimeoutAsync<HttpResponseMessage>(TimeSpan.FromSeconds(10));
+
+var retryPolicy = HttpPolicyExtensions
+    .HandleTransientHttpError()
+    .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+
+var circuitBreakerPolicy = HttpPolicyExtensions
+    .HandleTransientHttpError()
+    .CircuitBreakerAsync(2, TimeSpan.FromSeconds(30));
+
+// 🔥 HttpClientFactory Kullanımı
+builder.Services.AddHttpClient<ITsoftService, TsoftService>()
+    .AddPolicyHandler(retryPolicy)
+    .AddPolicyHandler(circuitBreakerPolicy)
+    .AddPolicyHandler(timeoutPolicy);
+
+builder.Services.AddHttpClient<TsoftAuthService>()
+    .AddPolicyHandler(retryPolicy)
+    .AddPolicyHandler(circuitBreakerPolicy)
+    .AddPolicyHandler(timeoutPolicy);
+
 
 var app = builder.Build();
 

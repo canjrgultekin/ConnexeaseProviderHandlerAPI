@@ -1,5 +1,6 @@
 ﻿using System.Text;
 using System.Text.Json;
+using Common.Redis;
 using ProviderHandlerAPI.Models;
 using ProviderHandlerAPI.Models.Ticimax;
 
@@ -10,16 +11,23 @@ namespace ProviderHandlerAPI.Services.Ticimax
         private readonly HttpClient _httpClient;
         private readonly string _ticimaxApiUrl;
         private readonly ILogger<TicimaxApiClient> _logger;
+        private readonly RedisCacheService _cacheService;
 
-        public TicimaxApiClient(HttpClient httpClient, IConfiguration configuration, ILogger<TicimaxApiClient> logger)
+        public TicimaxApiClient(HttpClient httpClient, IConfiguration configuration,RedisCacheService redisCache, ILogger<TicimaxApiClient> logger)
         {
             _httpClient = httpClient;
             _ticimaxApiUrl = configuration["TicimaxAPI:BaseUrl"];
             _logger = logger;
+            _cacheService = redisCache;
         }
 
         public async Task<object> GetCustomerDataAsync(ClientRequestDto request)
         {
+            string cacheKey = $"{request.Provider}:{request.ProjectName}:{request.SessionId}:{request.CustomerId}";
+
+            // 🟢 Önce Cache'den kontrol edelim
+            var cachedData = await _cacheService.GetCacheObjectAsync<object>(cacheKey);
+            if (cachedData != null) return cachedData;
             try
             {
                 var jsonRequest = JsonSerializer.Serialize(request);
@@ -28,9 +36,11 @@ namespace ProviderHandlerAPI.Services.Ticimax
                 response.EnsureSuccessStatusCode();
 
                 var jsonResponse = await response.Content.ReadAsStringAsync();
-                var tsoftCustomerResponse = JsonSerializer.Deserialize<object>(jsonResponse);
+                var customerData = JsonSerializer.Deserialize<object>(jsonResponse);
 
-                return tsoftCustomerResponse;
+                // 🔵 Cache'e ekleyelim
+                await _cacheService.SetCacheAsync(cacheKey, customerData, 10);
+                return customerData;
             }
             catch (Exception ex)
             {

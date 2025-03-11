@@ -1,5 +1,7 @@
 ﻿using TicimaxAPI.Services;
 using Serilog;
+using Common.Redis;
+using StackExchange.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -8,12 +10,13 @@ builder.Host.UseSerilog((context, config) => config.WriteTo.Console());
 
 builder.Services.AddControllers();
 
-// 🔥 Redis Cache Kullanımı
-builder.Services.AddStackExchangeRedisCache(options =>
-{
-    options.Configuration = builder.Configuration["Redis:ConnectionString"];
-    options.InstanceName = "TicimaxCache_";
-});
+// 🔥 Redis Bağlantısı (IConnectionMultiplexer ile bağlantı havuzu yönetimi)
+builder.Services.AddSingleton<IConnectionMultiplexer>(
+    ConnectionMultiplexer.Connect(builder.Configuration["Redis:ConnectionString"])
+);
+
+// 🔥 RedisCacheService'in DI ile Yönetilmesi
+builder.Services.AddSingleton<RedisCacheService>();
 
 // 🔥 TicimaxWcfClient DI Entegrasyonu
 builder.Services.AddSingleton<TicimaxWcfClient>();

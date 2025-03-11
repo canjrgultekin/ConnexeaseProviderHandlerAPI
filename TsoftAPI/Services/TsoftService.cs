@@ -9,6 +9,7 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 using System.Net;
 using System.Web;
 using System;
+using Common.Redis;
 
 namespace TsoftAPI.Services
 {
@@ -17,32 +18,33 @@ namespace TsoftAPI.Services
         private readonly HttpClient _httpClient;
         private readonly TsoftAuthService _authService;
         private readonly ILogger<TsoftService> _logger;
-        private readonly IDistributedCache _cache;
+        private readonly RedisCacheService _cacheService;
         private readonly IConfiguration _configuration;
 
-        public TsoftService(HttpClient httpClient, IConfiguration configuration, TsoftAuthService authService, ILogger<TsoftService> logger, IDistributedCache cache)
+        public TsoftService(HttpClient httpClient, IConfiguration configuration, TsoftAuthService authService, ILogger<TsoftService> logger, RedisCacheService cache)
         {
             _httpClient = httpClient;
             _authService = authService;
             _logger = logger;
-            _cache = cache;
+            _cacheService = cache;
             _configuration = configuration;
         }
 
         public async Task<TsoftResponseDto> HandleTsoftRequestAsync(TsoftRequestDto request)
         {
-            var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, request.ProjectName); // 🔥 Helper Metot Kullanılıyor
-            var token = await _authService.GetAuthTokenAsync(request.ProjectName, request.SessionId);
-          //  _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-
-            var cacheKey = $"TsoftCustomer:{request.SessionId}:{request.CustomerId}";
-            string cachedCustomerCode = await _cache.GetStringAsync(cacheKey);
+          
+            var cacheKey = $"TsoftCustomerCode:{request.SessionId}:{request.CustomerId}";
+            string cachedCustomerCode = await _cacheService.GetCacheAsync(cacheKey);
             if(cachedCustomerCode == null)
             {
                 var customer = GetCustomerDataAsync(request.ProjectName, request.SessionId, request.CustomerId);
                 cachedCustomerCode = customer.Result.Data[0].CustomerCode;
-                await _cache.SetStringAsync(cacheKey, cachedCustomerCode);
+                await _cacheService.SetCacheAsync(cacheKey, cachedCustomerCode);
             }
+            var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, request.ProjectName); // 🔥 Helper Metot Kullanılıyor
+            var token = await _authService.GetAuthTokenAsync(request.ProjectName, request.SessionId);
+            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
+
             if (!Enum.TryParse(request.ActionType, true, out ActionType actionType))
             {
                 throw new ArgumentException("Geçersiz ActionType");
@@ -111,7 +113,7 @@ namespace TsoftAPI.Services
             var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, projectName); // 🔥 Helper Metot Kullanılıyor
             var token = await _authService.GetAuthTokenAsync(projectName,sessionId);
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            var cacheKey = $"TsoftCustomer:{sessionId}:{customerId}";
+            var cacheKey = $"TsoftCustomerCode:{sessionId}:{customerId}";
 
             string apiUrl = $"{firmaConfig.BaseUrl}/rest1/customer/getCustomerById/{customerId}";
 
@@ -124,7 +126,7 @@ namespace TsoftAPI.Services
                 var responseData = JsonSerializer.Deserialize<TsoftCustomerResponseDto>(jsonResponse);
                 if (status.IsSuccessStatusCode)
                 {
-                    await _cache.SetStringAsync(cacheKey, responseData.Data[0].CustomerCode);
+                    await _cacheService.SetCacheAsync(cacheKey, responseData.Data[0].CustomerCode);
                 }
                 return responseData;
             }

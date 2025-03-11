@@ -4,8 +4,10 @@ using StackExchange.Redis;
 using ProviderHandlerAPI.Services.Ikas;
 using ProviderHandlerAPI.Services.Ticimax;
 using ProviderHandlerAPI.Services.Tsoft;
-using ProviderHandlerAPI.Services.Cache;
 using Common.Kafka;
+using Polly.Extensions.Http;
+using Polly;
+using Common.Redis;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -23,14 +25,41 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(
 );
 builder.Services.AddSingleton<RedisCacheService>();
 
+// 🔥 HttpClient Timeout, Retry ve Circuit Breaker Politikaları
+var timeoutPolicy = Policy.TimeoutAsync<HttpResponseMessage>(10); // 10 saniye timeout
+
+var retryPolicy = HttpPolicyExtensions
+    .HandleTransientHttpError()
+    .WaitAndRetryAsync(3, retryAttempt => TimeSpan.FromSeconds(Math.Pow(2, retryAttempt)));
+
+var circuitBreakerPolicy = HttpPolicyExtensions
+    .HandleTransientHttpError()
+    .CircuitBreakerAsync(2, TimeSpan.FromSeconds(30));
 
 // 🔥 ProviderHandler DI Entegrasyonu
 builder.Services.AddSingleton<ProviderHandler>();
 
 // 🔥 Ikas, Ticimax ve Tsoft API Client DI Entegrasyonu
-builder.Services.AddHttpClient<IIkasApiClient, IkasApiClient>();
-builder.Services.AddHttpClient<ITicimaxApiClient, TicimaxApiClient>();
-builder.Services.AddHttpClient<ITsoftApiClient, TsoftApiClient>();
+builder.Services.AddHttpClient<IIkasApiClient, IkasApiClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).AddPolicyHandler(retryPolicy)
+  .AddPolicyHandler(circuitBreakerPolicy)
+  .AddPolicyHandler(timeoutPolicy);
+
+builder.Services.AddHttpClient<ITicimaxApiClient, TicimaxApiClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).AddPolicyHandler(retryPolicy)
+  .AddPolicyHandler(circuitBreakerPolicy)
+  .AddPolicyHandler(timeoutPolicy);
+
+builder.Services.AddHttpClient<ITsoftApiClient, TsoftApiClient>(client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+}).AddPolicyHandler(retryPolicy)
+  .AddPolicyHandler(circuitBreakerPolicy)
+  .AddPolicyHandler(timeoutPolicy);
 builder.Services.AddHttpClient();
 builder.Services.AddSingleton<KafkaProducerService>();
 

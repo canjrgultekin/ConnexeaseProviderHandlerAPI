@@ -3,6 +3,7 @@ using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Common.Redis;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using ProviderHandlerAPI.Models;
@@ -14,16 +15,23 @@ namespace ProviderHandlerAPI.Services.Ikas
         private readonly HttpClient _httpClient;
         private readonly string _ikasApiUrl;
         private readonly ILogger<IkasApiClient> _logger;
+        private readonly RedisCacheService _cacheService;
 
-        public IkasApiClient(HttpClient httpClient, IConfiguration configuration, ILogger<IkasApiClient> logger)
+        public IkasApiClient(HttpClient httpClient, IConfiguration configuration,RedisCacheService redisCacheService, ILogger<IkasApiClient> logger)
         {
             _httpClient = httpClient;
             _ikasApiUrl = configuration["IkasAPI:BaseUrl"]; // 🔥 BaseUrl artık config'den geliyor
             _logger = logger;
+            _cacheService = redisCacheService;
         }
 
         public async Task<object> GetCustomerDataAsync(ClientRequestDto request)
         {
+            string cacheKey = $"{request.Provider}:{request.ProjectName}:{request.SessionId}:{request.CustomerId}";
+
+            // 🟢 Cache kontrolü
+            var cachedData = await _cacheService.GetCacheObjectAsync<object>(cacheKey);
+            if (cachedData != null) return cachedData;
             try
             {
                 var jsonRequest = JsonSerializer.Serialize(request);
@@ -32,7 +40,11 @@ namespace ProviderHandlerAPI.Services.Ikas
                 response.EnsureSuccessStatusCode();
 
                 var jsonResponse = await response.Content.ReadAsStringAsync();
-                return JsonSerializer.Deserialize<object>(jsonResponse);
+                var customerData = JsonSerializer.Deserialize<object>(jsonResponse);
+
+                // 🔵 Cache'e ekleyelim
+                await _cacheService.SetCacheAsync(cacheKey, customerData, 10);
+                return customerData;
             }
             catch (Exception ex)
             {

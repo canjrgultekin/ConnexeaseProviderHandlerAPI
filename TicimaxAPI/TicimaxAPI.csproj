@@ -23,4 +23,8 @@
     <PackageReference Include="System.ServiceModel.Security" Version="6.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\Common.Redis\Common.Redis.csproj" />
+  </ItemGroup>
+
 </Project>

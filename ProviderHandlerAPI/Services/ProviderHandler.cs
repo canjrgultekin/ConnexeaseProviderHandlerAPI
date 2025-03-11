@@ -6,10 +6,10 @@ using ProviderHandlerAPI.Services;
 using ProviderHandlerAPI.Enums;
 using ProviderHandlerAPI.Services.Ticimax;
 using ProviderHandlerAPI.Services.Tsoft;
-using ProviderHandlerAPI.Services.Cache;
 using ProviderHandlerAPI.Helper;
 using ProviderHandlerAPI.Services.Ikas;
 using Common.Kafka;
+using Common.Redis;
 
 namespace ProviderHandlerAPI.Services
 {
@@ -25,7 +25,7 @@ namespace ProviderHandlerAPI.Services
             ITicimaxApiClient ticimaxApiClient,
             ITsoftApiClient tsoftApiClient,
             IIkasApiClient ikasApiClient,
-            RedisCacheService redisCacheService, 
+            RedisCacheService redisCacheService,
             KafkaProducerService kafkaProducer)
         {
             _ticimaxApiClient = ticimaxApiClient;
@@ -38,66 +38,63 @@ namespace ProviderHandlerAPI.Services
 
         public async Task<object> HandleRequestAsync(ClientRequestDto request)
         {
-            string cacheKey = $"{request.Provider}:{request.ProjectName}:{request.SessionId}:{request.CustomerId}";
-            var cachedCustomer = await _redisCacheService.GetCacheAsync(cacheKey);
 
             if (!Enum.TryParse(request.Provider, true, out ProviderType providerType))
             {
                 throw new ArgumentException("Geçersiz Provider");
             }
 
-            if (cachedCustomer == null)
+
+            object customerData = providerType.GetProviderTypeString() switch
             {
-                Console.WriteLine($"🆕 {providerType} müşteri verisi çekiliyor: {request.CustomerId}");
+                "ticimax" => await _ticimaxApiClient.GetCustomerDataAsync(request),
+                "tsoft" => await _tsoftApiClient.GetCustomerDataAsync(request),
+                "ikas" => await _ikasApiClient.GetCustomerDataAsync(request),
 
-                object customerData = providerType.GetProviderTypeString() switch
-                {
-                    "ticimax" => await _ticimaxApiClient.GetCustomerDataAsync(request),
-                    "tsoft" => await _tsoftApiClient.GetCustomerDataAsync(request),
-                    "ikas" => await _ikasApiClient.GetCustomerDataAsync(request),
+                _ => null
+            };
 
-                    _ => null
-                };
-
-                if (customerData != null)
-                {
-                    Console.WriteLine($"✅ {providerType} Müşteri verisi cache'e alınıyor: {request.CustomerId}");
-
-                    var newCustomerData = new CustomerData
-                    {
-                        CustomerId = request.CustomerId,
-                        SessionId = request.SessionId,
-                        Provider = request.Provider,
-                        ProjectName = request.ProjectName,
-                        Data = customerData
-                    };
-
-                    await _redisCacheService.SetCacheAsync(cacheKey, newCustomerData, 60);
-                }
-                else
-                {
-                    Console.WriteLine($"⚠️ {providerType} müşteri verisi alınamadı: {request.CustomerId}");
-                }
+            if (customerData == null)
+            {
+                Console.WriteLine($"⚠️ {providerType} müşteri verisi alınamadı: {request.CustomerId}");
             }
+
             object data = providerType.GetProviderTypeString() switch
             {
                 "ticimax" => await _ticimaxApiClient.SendRequestToTicimaxAsync(request),
                 "tsoft" => await _tsoftApiClient.SendRequestToTsoftAsync(request),
                 "ikas" => await _ikasApiClient.SendRequestToIkasAsync(request),
-                _ => throw new ArgumentException("Geçersiz Provider")
+                _ => null
             };
-
-            // 🔥 Kafka'ya event gönderiliyor
-            await _kafkaProducer.SendMessageAsync(new
+            if (data == null && customerData == null)
             {
-                Provider = request.Provider,
-                ProjectName = request.ProjectName,
-                SessionId = request.SessionId,
-                CustomerId = request.CustomerId,
-                ActionType = request.ActionType,
-                Data = data
-            });
-            return data;
+                Console.WriteLine($"⚠️ {providerType} servis verisi alınamadı: {request.CustomerId}");
+
+                return new ClientResponseDto();
+            }
+            else
+            {
+                var responseDto = new ClientResponseDto
+                {
+                    CustomerId = request.CustomerId,
+                    SessionId = request.SessionId,
+                    Provider = request.Provider,
+                    ProjectName = request.ProjectName,
+                    CustomerDataById = customerData,
+                    ServiceDataByActionType = data
+                };
+                // 🔥 Kafka'ya event gönderiliyor
+                await _kafkaProducer.SendMessageAsync(new
+                {
+                    Provider = request.Provider,
+                    ProjectName = request.ProjectName,
+                    SessionId = request.SessionId,
+                    CustomerId = request.CustomerId,
+                    ActionType = request.ActionType,
+                    Data = responseDto
+                });
+                return responseDto;
+            }  
         }
     }
 }

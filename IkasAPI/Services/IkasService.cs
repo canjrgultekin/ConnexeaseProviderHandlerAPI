@@ -41,7 +41,8 @@ namespace IkasAPI.Services
             response.EnsureSuccessStatusCode();
 
             var jsonResponse = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<object>(jsonResponse);
+            var data = JsonSerializer.Deserialize<object>(jsonResponse);
+            return data;
         }
 
         public async Task<object> HandleIkasRequestAsync(IkasRequestDto request)
@@ -76,7 +77,8 @@ namespace IkasAPI.Services
             response.EnsureSuccessStatusCode();
 
             var jsonResponse = await response.Content.ReadAsStringAsync();
-            return JsonSerializer.Deserialize<object>(jsonResponse);
+            var data = JsonSerializer.Deserialize<object>(jsonResponse);
+            return data;
         }
     }
 }

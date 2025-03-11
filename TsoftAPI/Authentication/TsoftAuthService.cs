@@ -1,4 +1,5 @@
 ﻿using System.Text.Json;
+using Common.Redis;
 using Microsoft.Extensions.Caching.Distributed;
 using TsoftAPI.Helper;
 using TsoftAPI.Models.Authentication;
@@ -10,9 +11,9 @@ namespace TsoftAPI.Authentication
         private readonly HttpClient _httpClient;
         private readonly IConfiguration _configuration;
         private readonly ILogger<TsoftAuthService> _logger;
-        private readonly IDistributedCache _cache;
+        private readonly RedisCacheService _cache;
 
-        public TsoftAuthService(HttpClient httpClient, IConfiguration configuration, ILogger<TsoftAuthService> logger, IDistributedCache cache)
+        public TsoftAuthService(HttpClient httpClient, IConfiguration configuration, ILogger<TsoftAuthService> logger, RedisCacheService cache)
         {
             _httpClient = httpClient;
             _configuration = configuration;
@@ -22,15 +23,7 @@ namespace TsoftAPI.Authentication
 
         public async Task<string> GetAuthTokenAsync(string projectName,string sessionId)
         {
-            var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, projectName); // 🔥 Helper Metot Kullanılıyor
-            string cacheKey = $"TsoftAuthToken:{projectName+sessionId}";
-            var cachedToken = await _cache.GetStringAsync(cacheKey);
-
-            if (!string.IsNullOrEmpty(cachedToken))
-            {
-                _logger.LogInformation($"✅ {projectName} için token cache'den kullanıldı.");
-                return cachedToken;
-            }
+            var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, projectName); // 🔥 Helper Metot Kullanılıyo
 
             var authUrl = $"{firmaConfig.BaseUrl}/rest1/auth/login/{firmaConfig.Name}?pass={firmaConfig.Password}";
 
@@ -47,10 +40,6 @@ namespace TsoftAPI.Authentication
                 var token = authResponse?.Data?[0]?.Token;
                 if (!string.IsNullOrEmpty(token))
                 {
-                    await _cache.SetStringAsync(cacheKey, token, new DistributedCacheEntryOptions
-                    {
-                        AbsoluteExpirationRelativeToNow = TimeSpan.FromHours(1)
-                    });
                     return token;
                 }
                 throw new Exception("Tsoft API Token alınamadı.");
