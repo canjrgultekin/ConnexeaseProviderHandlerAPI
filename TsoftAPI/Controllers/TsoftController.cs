@@ -25,8 +25,8 @@ namespace TsoftAPI.Controllers
         [HttpPost("get-customer")]
         public async Task<IActionResult> GetCustomer([FromBody] TsoftRequestDto request)
         {
-            var customerData = await _tsoftService.GetCustomerDataAsync(request.ProjectName,request.SessionId, request.CustomerId);
-            return Ok(customerData);
+            var response = await _tsoftService.GetCustomerDataAsync(request);
+            return Ok(response);
         }
 
        

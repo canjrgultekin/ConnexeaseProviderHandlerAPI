@@ -22,12 +22,12 @@ namespace ProviderHandlerAPI.Services.Tsoft
             _cacheService = redisCache;
         }
 
-        public async Task<TsoftCustomerResponseDto> GetCustomerDataAsync(ClientRequestDto request)
+        public async Task<object> GetCustomerDataAsync(ClientRequestDto request)
         {
-            string cacheKey = $"{request.Provider}:{request.ProjectName}:{request.SessionId}:{request.CustomerId}";
+            string cacheKey = $"TsoftCustomerData:{request.Provider}:{request.ProjectName}:{request.SessionId}:{request.CustomerId}";
 
             // 🟢 Cache kontrolü
-            var cachedData = await _cacheService.GetCacheObjectAsync<TsoftCustomerResponseDto>(cacheKey);
+            var cachedData = await _cacheService.GetCacheObjectAsync<object>(cacheKey);
             if (cachedData != null) return cachedData;
             try
             {
@@ -36,7 +36,7 @@ namespace ProviderHandlerAPI.Services.Tsoft
                 var response = await _httpClient.PostAsync($"{_tsoftApiUrl}/api/tsoft/get-customer",content);
                 response.EnsureSuccessStatusCode();
                 var jsonResponse = await response.Content.ReadAsStringAsync();
-                var customerData = JsonSerializer.Deserialize<TsoftCustomerResponseDto>(jsonResponse);
+                var customerData = JsonSerializer.Deserialize<object>(jsonResponse);
 
                 // 🔵 Cache'e ekleyelim
                 await _cacheService.SetCacheAsync(cacheKey, customerData, 10);
@@ -45,11 +45,11 @@ namespace ProviderHandlerAPI.Services.Tsoft
             catch (Exception ex)
             {
                 _logger.LogError($"❌ TsoftAPI'den müşteri bilgisi alınamadı: {ex.Message}");
-                return new TsoftCustomerResponseDto();
+                return new { Message = "Müşteri bilgisi alınamadı" };
             }
         }
 
-        public async Task<TsoftResponseDto> SendRequestToTsoftAsync(ClientRequestDto request)
+        public async Task<object> SendRequestToTsoftAsync(ClientRequestDto request)
         {
             try
             {
@@ -61,18 +61,13 @@ namespace ProviderHandlerAPI.Services.Tsoft
 
                 var jsonResponse = await response.Content.ReadAsStringAsync();
                 var data = JsonSerializer.Deserialize<object>(jsonResponse);
-                TsoftResponseDto responseDto = new TsoftResponseDto
-                {
-                    Status = "Success",
-                    Message = $"{request.ProjectName} için Tsoft işlemi tamamlandı",
-                    Data = data
-                };
-                return responseDto;
+               
+                return data;
             }
             catch (Exception ex)
             {
                 _logger.LogError($"❌ TsoftAPI çağrısı başarısız: {ex.Message}");
-                return new TsoftResponseDto { Status = "Error", Message = "Tsoft API çağrısı başarısız" };
+                return new { Status = "Error", Message = "Tsoft API çağrısı başarısız" };
             }
         }
     }

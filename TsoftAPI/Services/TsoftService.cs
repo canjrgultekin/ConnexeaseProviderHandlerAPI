@@ -30,19 +30,14 @@ namespace TsoftAPI.Services
             _configuration = configuration;
         }
 
-        public async Task<TsoftResponseDto> HandleTsoftRequestAsync(TsoftRequestDto request)
+        public async Task<object> HandleTsoftRequestAsync(TsoftRequestDto request)
         {
-          
-            var cacheKey = $"TsoftCustomerCode:{request.SessionId}:{request.CustomerId}";
-            string cachedCustomerCode = await _cacheService.GetCacheAsync(cacheKey);
-            if(cachedCustomerCode == null)
-            {
-                var customer = GetCustomerDataAsync(request.ProjectName, request.SessionId, request.CustomerId);
-                cachedCustomerCode = customer.Result.Data[0].CustomerCode;
-                await _cacheService.SetCacheAsync(cacheKey, cachedCustomerCode);
-            }
+            var cacheKey = $"TsoftCustomerCode:{request.Provider}:{request.ProjectName}:{request.SessionId}:{request.CustomerId}";
+            string cachedCustomerCode = await _cacheService.GetCacheObjectAsync<string>(cacheKey);
+        
+
             var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, request.ProjectName); // 🔥 Helper Metot Kullanılıyor
-            var token = await _authService.GetAuthTokenAsync(request.ProjectName, request.SessionId);
+            var token = await _authService.GetAuthTokenAsync(request);
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
 
             if (!Enum.TryParse(request.ActionType, true, out ActionType actionType))
@@ -60,16 +55,16 @@ namespace TsoftAPI.Services
             };
             var postData = actionType.GetActionTypeString() switch
             {
-            "add_to_cart" => new Dictionary<string, string>
-             {
-                { "token", token }            
-            },            
-            "remove_to_cart" => new Dictionary<string, string>
+                "add_to_cart" => new Dictionary<string, string>
              {
                 { "token", token }
             },
-            "checkout" => new Dictionary<string, string>
-             { 
+                "remove_to_cart" => new Dictionary<string, string>
+             {
+                { "token", token }
+            },
+                "checkout" => new Dictionary<string, string>
+             {
                 { "token", token },
                 { "FetchProductData", "true" },
                 { "FetchProductDetail", "true" },
@@ -77,12 +72,12 @@ namespace TsoftAPI.Services
                 { "FetchCustomerData", "true" },
                 { "f", $"CustomerId|{request.CustomerId}|equal" }
              },
-             "add_favorite_product" => new Dictionary<string, string>
+                "add_favorite_product" => new Dictionary<string, string>
              {
                 { "token", token },
                 { "CustomerId", request.CustomerId }
               },
-               _ => throw new ArgumentException("Geçersiz ActionType")
+                _ => throw new ArgumentException("Geçersiz ActionType")
             };
 
 
@@ -93,13 +88,7 @@ namespace TsoftAPI.Services
                 response.EnsureSuccessStatusCode(); // Hata durumlarını yönetir
                 string result = await response.Content.ReadAsStringAsync();
                 var data = JsonSerializer.Deserialize<object>(result);
-                TsoftResponseDto responseDto = new TsoftResponseDto
-                {
-                    Status = "Success",
-                    Message = $"{request.ProjectName} için Tsoft işlemi tamamlandı",
-                    Data = data
-                };
-                return responseDto;
+                return data;
             }
             catch (Exception ex)
             {
@@ -108,25 +97,28 @@ namespace TsoftAPI.Services
             }
         }
 
-        public async Task<TsoftCustomerResponseDto> GetCustomerDataAsync(string projectName,string sessionId, string customerId)
+        public async Task<object> GetCustomerDataAsync(TsoftRequestDto request)
         {
-            var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, projectName); // 🔥 Helper Metot Kullanılıyor
-            var token = await _authService.GetAuthTokenAsync(projectName,sessionId);
+            var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, request.ProjectName); // 🔥 Helper Metot Kullanılıyor
+            var token = await _authService.GetAuthTokenAsync(request);
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", token);
-            var cacheKey = $"TsoftCustomerCode:{sessionId}:{customerId}";
 
-            string apiUrl = $"{firmaConfig.BaseUrl}/rest1/customer/getCustomerById/{customerId}";
+            string apiUrl = $"{firmaConfig.BaseUrl}/rest1/customer/getCustomerById/{request.CustomerId}";
 
             try
             {
                 var response = await _httpClient.PostAsync(apiUrl, new StringContent($"token={token}", Encoding.UTF8, "application/x-www-form-urlencoded"));
-               var status = response.EnsureSuccessStatusCode();
-               
+                var status = response.EnsureSuccessStatusCode();
+
                 var jsonResponse = await response.Content.ReadAsStringAsync();
-                var responseData = JsonSerializer.Deserialize<TsoftCustomerResponseDto>(jsonResponse);
+                var responseData = JsonSerializer.Deserialize<object>(jsonResponse);
                 if (status.IsSuccessStatusCode)
                 {
-                    await _cacheService.SetCacheAsync(cacheKey, responseData.Data[0].CustomerCode);
+                    var cacheKey = $"TsoftCustomerCode:{request.Provider}:{request.ProjectName}:{request.SessionId}:{request.CustomerId}";
+                    var jsonDoc = JsonDocument.Parse(jsonResponse);
+                    var dataArray = jsonDoc.RootElement.GetProperty("data");
+                    var customerCode =  dataArray.EnumerateArray().FirstOrDefault().GetProperty("CustomerCode").GetString();
+                    await _cacheService.SetCacheAsync(cacheKey, customerCode);
                 }
                 return responseData;
             }

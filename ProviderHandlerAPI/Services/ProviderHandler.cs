@@ -1,4 +1,6 @@
 ﻿using System;
+using System.Text;
+using System.Security.Cryptography;
 using System.Text.Json;
 using System.Threading.Tasks;
 using ProviderHandlerAPI.Models;
@@ -19,7 +21,7 @@ namespace ProviderHandlerAPI.Services
         private readonly ITicimaxApiClient _ticimaxApiClient;
         private readonly ITsoftApiClient _tsoftApiClient;
         private readonly IIkasApiClient _ikasApiClient;
-        private readonly KafkaProducerService _kafkaProducer; // 🔥 Kafka Producer eklendi
+        private readonly KafkaProducerService _kafkaProducer;
 
         public ProviderHandler(
             ITicimaxApiClient ticimaxApiClient,
@@ -32,25 +34,21 @@ namespace ProviderHandlerAPI.Services
             _tsoftApiClient = tsoftApiClient;
             _ikasApiClient = ikasApiClient;
             _redisCacheService = redisCacheService;
-            _kafkaProducer = kafkaProducer; // 🔥 Kafka Producer kullanımı
-
+            _kafkaProducer = kafkaProducer;
         }
 
         public async Task<object> HandleRequestAsync(ClientRequestDto request)
         {
-
             if (!Enum.TryParse(request.Provider, true, out ProviderType providerType))
             {
                 throw new ArgumentException("Geçersiz Provider");
             }
-
 
             object customerData = providerType.GetProviderTypeString() switch
             {
                 "ticimax" => await _ticimaxApiClient.GetCustomerDataAsync(request),
                 "tsoft" => await _tsoftApiClient.GetCustomerDataAsync(request),
                 "ikas" => await _ikasApiClient.GetCustomerDataAsync(request),
-
                 _ => null
             };
 
@@ -66,10 +64,10 @@ namespace ProviderHandlerAPI.Services
                 "ikas" => await _ikasApiClient.SendRequestToIkasAsync(request),
                 _ => null
             };
+
             if (data == null && customerData == null)
             {
                 Console.WriteLine($"⚠️ {providerType} servis verisi alınamadı: {request.CustomerId}");
-
                 return new ClientResponseDto();
             }
             else
@@ -83,6 +81,33 @@ namespace ProviderHandlerAPI.Services
                     CustomerDataById = customerData,
                     ServiceDataByActionType = data
                 };
+
+                // 🔥 Tüm verinin hash'ini al (tamamı mükerrer mi?)
+                string fullMessageHash = GenerateHash(JsonSerializer.Serialize(responseDto));
+                string fullRedisKey = $"kafka_event:{fullMessageHash}";
+
+                // 🔥 Sadece CustomerDataById'nin hash'ini al (müşteri verisi değişti mi?)
+                string customerDataHash = customerData != null ? GenerateHash(JsonSerializer.Serialize(customerData)) : null;
+                string customerRedisKey = $"customer_data:{request.CustomerId}";
+
+                // 🔥 Redis Duplicate Kontrolü
+                bool isFullDuplicate = await _redisCacheService.GetCacheAsync(fullRedisKey) != null;
+                bool isCustomerDuplicate = customerDataHash != null && await _redisCacheService.GetCacheAsync(customerRedisKey) == customerDataHash;
+
+                // 🔥 Eğer tamamen mükerrer ise, Kafka'ya göndermeden çık
+                if (isFullDuplicate)
+                {
+                    Console.WriteLine($"⚠️ Tamamı mükerrer olan Kafka event tespit edildi: {fullMessageHash}");
+                    return responseDto;
+                }
+
+                // 🔥 Eğer sadece CustomerDataById mükerrer ise, `null` olarak Kafka'ya gönder
+                if (isCustomerDuplicate)
+                {
+                    responseDto.CustomerDataById = null;
+                    Console.WriteLine($"⚠️ CustomerDataById değişmedi, null olarak gönderilecek.");
+                }
+
                 // 🔥 Kafka'ya event gönderiliyor
                 await _kafkaProducer.SendMessageAsync(new
                 {
@@ -93,8 +118,31 @@ namespace ProviderHandlerAPI.Services
                     ActionType = request.ActionType,
                     Data = responseDto
                 });
+
+                // 🔥 Redis'e ekle ve TTL belirle (örn: 1 saat)
+                await _redisCacheService.SetCacheAsync(fullRedisKey, "1", 60);
+
+                // 🔥 Eğer CustomerDataById değiştiyse, yeni hash değerini kaydet
+                if (customerDataHash != null)
+                {
+                    await _redisCacheService.SetCacheAsync(customerRedisKey, customerDataHash, 60);
+                }
+
                 return responseDto;
-            }  
+            }
+        }
+
+        /// <summary>
+        /// Verilen string verisini SHA256 hash'ine çevirir
+        /// </summary>
+        private string GenerateHash(string input)
+        {
+            using (SHA256 sha256 = SHA256.Create())
+            {
+                byte[] inputBytes = Encoding.UTF8.GetBytes(input);
+                byte[] hashBytes = sha256.ComputeHash(inputBytes);
+                return Convert.ToBase64String(hashBytes);
+            }
         }
     }
 }

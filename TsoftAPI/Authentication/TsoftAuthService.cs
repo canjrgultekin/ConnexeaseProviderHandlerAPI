@@ -2,6 +2,7 @@
 using Common.Redis;
 using Microsoft.Extensions.Caching.Distributed;
 using TsoftAPI.Helper;
+using TsoftAPI.Models;
 using TsoftAPI.Models.Authentication;
 
 namespace TsoftAPI.Authentication
@@ -21,15 +22,19 @@ namespace TsoftAPI.Authentication
             _cache = cache;
         }
 
-        public async Task<string> GetAuthTokenAsync(string projectName,string sessionId)
+        public async Task<string> GetAuthTokenAsync(TsoftRequestDto request)
         {
-            var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, projectName); // 🔥 Helper Metot Kullanılıyo
+            string cacheKey = $"TsoftCustomerToken:{request.Provider}:{request.ProjectName}:{request.SessionId}:{request.CustomerId}";
+            var cachedToken = await _cache.GetCacheObjectAsync<string>(cacheKey);
+            if (cachedToken != null) return cachedToken;
+
+            var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, request.ProjectName); // 🔥 Helper Metot Kullanılıyo
 
             var authUrl = $"{firmaConfig.BaseUrl}/rest1/auth/login/{firmaConfig.Name}?pass={firmaConfig.Password}";
 
             try
             {
-                _logger.LogInformation($"📡 {projectName} için Tsoft API'ye token isteği gönderiliyor: {authUrl}");
+                _logger.LogInformation($"📡 {request.ProjectName} için Tsoft API'ye token isteği gönderiliyor: {authUrl}");
 
                 var response = await _httpClient.PostAsync(authUrl, null);
                 response.EnsureSuccessStatusCode();
@@ -40,13 +45,14 @@ namespace TsoftAPI.Authentication
                 var token = authResponse?.Data?[0]?.Token;
                 if (!string.IsNullOrEmpty(token))
                 {
+                    await _cache.SetCacheAsync<string>(cacheKey, token,10);
                     return token;
                 }
                 throw new Exception("Tsoft API Token alınamadı.");
             }
             catch (Exception ex)
             {
-                _logger.LogError($"❌ {projectName} için Tsoft API'ye token isteği başarısız: {ex.Message}");
+                _logger.LogError($"❌ {request.ProjectName} için Tsoft API'ye token isteği başarısız: {ex.Message}");
                 throw;
             }
         }

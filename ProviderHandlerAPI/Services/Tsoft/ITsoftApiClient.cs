@@ -6,7 +6,7 @@ namespace ProviderHandlerAPI.Services.Tsoft
 {
     public interface ITsoftApiClient
     {
-        Task<TsoftCustomerResponseDto> GetCustomerDataAsync(ClientRequestDto request);
-        Task<TsoftResponseDto> SendRequestToTsoftAsync(ClientRequestDto request);
+        Task<object> GetCustomerDataAsync(ClientRequestDto request);
+        Task<object> SendRequestToTsoftAsync(ClientRequestDto request);
     }
 }

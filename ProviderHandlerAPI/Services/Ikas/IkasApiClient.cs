@@ -27,7 +27,7 @@ namespace ProviderHandlerAPI.Services.Ikas
 
         public async Task<object> GetCustomerDataAsync(ClientRequestDto request)
         {
-            string cacheKey = $"{request.Provider}:{request.ProjectName}:{request.SessionId}:{request.CustomerId}";
+            string cacheKey = $"IkasCustomerData:{request.Provider}:{request.ProjectName}:{request.SessionId}:{request.CustomerId}";
 
             // 🟢 Cache kontrolü
             var cachedData = await _cacheService.GetCacheObjectAsync<object>(cacheKey);

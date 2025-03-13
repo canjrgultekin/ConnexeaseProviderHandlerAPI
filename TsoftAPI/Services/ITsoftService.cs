@@ -5,7 +5,7 @@ namespace TsoftAPI.Services
 {
     public interface ITsoftService
     {
-        Task<TsoftResponseDto> HandleTsoftRequestAsync(TsoftRequestDto request);
-        Task<TsoftCustomerResponseDto> GetCustomerDataAsync(string projectName,string sessionId, string customerId); // 🔥 Eksik olan metod eklendi
+        Task<object> HandleTsoftRequestAsync(TsoftRequestDto request);
+        Task<object> GetCustomerDataAsync(TsoftRequestDto request); // 🔥 Eksik olan metod eklendi
     }
 }

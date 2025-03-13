@@ -17,7 +17,7 @@ namespace TicimaxAPI.Services
             _logger = logger;
         }
 
-        public async Task<TicimaxResponseDto> HandleTicimaxRequestAsync(TicimaxRequestDto request)
+        public async Task<object> HandleTicimaxRequestAsync(TicimaxRequestDto request)
         {
             var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, request.ProjectName); // 🔥 ProjectName bazlı konfig alma
             if (!Enum.TryParse(request.ActionType, true, out ActionType actionType))
@@ -33,18 +33,14 @@ namespace TicimaxAPI.Services
                 _ => throw new ArgumentException("Geçersiz ActionType")
             };
 
-            return new TicimaxResponseDto
-            {
-                Status = "Success",
-                Message = $"{request.ProjectName} için Ticimax işlemi tamamlandı",
-                Data = data
-            };
+            return data;
         }
 
-        public async Task<object> GetCustomerDataAsync(string projectName,string sessionId, string customerId)
+        public async Task<object> GetCustomerDataAsync(string projectName, string sessionId, string customerId)
         {
             var firmaConfig = Utils.GetFirmaConfig(_configuration, _logger, projectName); // 🔥 Firma yapılandırmasını al
-            return await _ticimaxWcfClient.GetCustomerData(firmaConfig, customerId);
+            var data = await _ticimaxWcfClient.GetCustomerData(firmaConfig, customerId);
+            return data;
         }
     }
 }
