@@ -23,7 +23,7 @@ namespace ProviderHandlerAPI.Services.Ticimax
 
         public async Task<object> GetCustomerDataAsync(ClientRequestDto request)
         {
-            string cacheKey = $"{request.Provider}:{request.ProjectName}:{request.SessionId}:{request.CustomerId}";
+            string cacheKey = $"TicimaxCustomerData:{request.Provider}:{request.ProjectName}:{request.SessionId}:{request.CustomerId}";
 
             // 🟢 Önce Cache'den kontrol edelim
             var cachedData = await _cacheService.GetCacheObjectAsync<object>(cacheKey);
@@ -49,7 +49,7 @@ namespace ProviderHandlerAPI.Services.Ticimax
             }
         }
 
-        public async Task<TicimaxResponseDto> SendRequestToTicimaxAsync(ClientRequestDto request)
+        public async Task<object> SendRequestToTicimaxAsync(ClientRequestDto request)
         {
             try
             {
@@ -61,18 +61,13 @@ namespace ProviderHandlerAPI.Services.Ticimax
 
                 var jsonResponse = await response.Content.ReadAsStringAsync();
                 var data = JsonSerializer.Deserialize<object>(jsonResponse);
-                TicimaxResponseDto responseDto = new TicimaxResponseDto
-                {
-                    Status = "Success",
-                    Message = $"{request.ProjectName} için Tsoft işlemi tamamlandı",
-                    Data = data
-                };
-                return responseDto;
+               
+                return data;
             }
             catch (Exception ex)
             {
                 _logger.LogError($"❌ TicimaxAPI çağrısı başarısız: {ex.Message}");
-                return new TicimaxResponseDto { Status = "Error", Message = "Ticimax API çağrısı başarısız" };
+                return new  { Message = "Ticimax API çağrısı başarısız" };
             }
         }
     }

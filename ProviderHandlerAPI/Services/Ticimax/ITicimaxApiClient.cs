@@ -7,6 +7,6 @@ namespace ProviderHandlerAPI.Services.Ticimax
     public interface ITicimaxApiClient
     {
         Task<object> GetCustomerDataAsync(ClientRequestDto request);
-        Task<TicimaxResponseDto> SendRequestToTicimaxAsync(ClientRequestDto request);
+        Task<object> SendRequestToTicimaxAsync(ClientRequestDto request);
     }
 }
